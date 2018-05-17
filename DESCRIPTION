@@ -1,0 +1,13 @@
+Package: oysterpond
+Type: Package
+Title: Data from Oyster Pond, Falmouth MA, and Shiny Plotting Tool
+Version: 0.0.0.900
+Authors@R: person("Ben", "Harden", email = "bharden@sea.edu", role = c("aut", "cre"))
+Description: This package has a store of data collected over many years by the Oyster Pond Environmental Trust pertaining to environmental condition in the pond. The formatted data stored in the package can be visualized with a shiny web app.
+License: GPL (>= 2)
+Encoding: UTF-8
+LazyData: true
+Suggests: shiny,
+    leaflet,
+    shinydashboard,
+    ggplot2
