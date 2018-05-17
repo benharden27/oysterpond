@@ -24,7 +24,7 @@ ui <- dashboardPage(
 
    # Sidebar with a slider input for number of bins
    dashboardSidebar(
-     selectInput("site","Choose a site...", choices = site_locs$site , selected = "op1"),
+     fluidPage(h3(textOutput("site"))),
      selectInput("var","Choose a variable...", choices = names(op_dat)[3:26], selected = "temp"),
      uiOutput("depths")
    ),
@@ -43,28 +43,29 @@ ui <- dashboardPage(
 server <- function(input, output) {
 
   output$map <- renderLeaflet({
-    m <- leaflet(op_dat)
+    m <- leaflet(site_locs)
     m <- addTiles(m)
     m <- addCircleMarkers(m,label = ~site)
   })
 
-  observeEvent(input$map_marker_click, {
+  site <- eventReactive(input$map_marker_click, {
     loc = input$map_marker_click
-    print(loc)
-    site <- site_locs$site[which(site_locs$lon==loc$lng)]
-    output$clickloc <- renderText({site})
+    site_locs$site[which(site_locs$lon==loc$lng)]
+  })
+
+  output$site <- renderText({
+    site()
   })
 
   output$series <- renderPlot({
-    data <- op_dat[op_dat$site == input$site, ]
+    data <- op_dat[op_dat$site == site(), ]
     data <- subset(data, depth %in% input$depth)
-    print(data)
     ggplot(data) +
       geom_point(aes_string(x="date",y=input$var,color="depth"))
   })
 
   output$depths <- renderUI({
-    data <- op_dat[op_dat$site==input$site, ]
+    data <- op_dat[op_dat$site==site(), ]
     checkboxGroupInput("depth","Choose Depth",unique(data$depth),selected = "0")
   })
 
