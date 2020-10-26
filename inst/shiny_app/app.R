@@ -7,14 +7,25 @@
 #    http://shiny.rstudio.com/
 #
 
+library(tidyverse)
 library(shiny)
 library(leaflet)
 library(shinydashboard)
-library(ggplot2)
+library(oysterpond)
 
-op_dat <- readRDS("data/op_dat.rds")
 site_locs <- op_dat[!duplicated(op_dat$site),c(2,28,29)]
 op_dat$depth = as.character(op_dat$depth)
+op_dat <- select(op_dat,date,site,depth,temp,salinity,do_pc,tdn,tdp,chl)
+op_meta_dat <- tibble::tibble(var = names(op_dat),
+                              name = c("Date","Site","Depth",
+                                       "Temperature",
+                                       "Salinity",
+                                       "Oxygen",
+                                       "Nitrogen",
+                                       "Phosophorus",
+                                       "Chlorophyll-a"),
+                              unit = c("","","m","^oC","ppt","%","mg/L",
+                                       "ug/L","ug/L"))
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
@@ -25,7 +36,7 @@ ui <- dashboardPage(
    # Sidebar with a slider input for number of bins
    dashboardSidebar(
      fluidPage(h3(textOutput("site"))),
-     selectInput("var","Choose a variable...", choices = names(op_dat)[3:26], selected = "temp"),
+     uiOutput("vars"),
      uiOutput("depths")
    ),
 
@@ -43,9 +54,11 @@ ui <- dashboardPage(
 server <- function(input, output) {
 
   output$map <- renderLeaflet({
-    m <- leaflet(site_locs)
-    m <- addTiles(m)
-    m <- addCircleMarkers(m,label = ~site)
+    m <- leaflet(site_locs,
+                 options = leafletOptions(zoomControl = FALSE,
+                                          minZoom = 15, maxZoom = 15)) %>%
+      addTiles() %>%
+      addCircleMarkers(label = ~site)
   })
 
   site <- eventReactive(input$map_marker_click, {
@@ -61,7 +74,14 @@ server <- function(input, output) {
     data <- op_dat[op_dat$site == site(), ]
     data <- subset(data, depth %in% input$depth)
     ggplot(data) +
-      geom_point(aes_string(x="date",y=input$var,color="depth"))
+      geom_point(aes_string(x="date",y=input$var,color="depth"),
+                 na.rm = TRUE)
+  })
+
+  output$vars <- renderUI({
+    selectInput("var","Choose a variable...",
+                choices = find_notna(op_dat,op_meta_dat,site()),
+                selected = "temp")
   })
 
   output$depths <- renderUI({

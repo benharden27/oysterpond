@@ -1,4 +1,4 @@
-data_path <- "~/data/SEA/oyster_pond/OP_all_data_2005_2017updated_Mar 19 2018.xlsx"
+data_path <- "~/data/oyster_pond/OP_all_data_2005_2017updated_Mar 19 2018.xlsx"
 
 df <- readxl::read_excel(data_path, skip = 1, n_max = 1)
 data_names <- stringr::str_to_lower(names(df))
@@ -87,11 +87,13 @@ lon[stringr::str_which(df$site,"spohr")] <- spohr_loc[2]
 lon[stringr::str_which(df$site,"lagoon")] <- lagoon_loc[2]
 
 
+df$salinity <- as.numeric(df$salinity)
 df <- dplyr::mutate(df,lon = lon, lat = lat)
 
 op_dat <- df
 
-saveRDS(op_dat,"oysterpond/data/op_dat.rds")
 
-devtools::use_data(op_dat, overwrite = TRUE)
+# saveRDS(op_dat,"oysterpond/data/op_dat.rds")
+
+usethis::use_data(op_dat, overwrite = TRUE)
 
