@@ -27,6 +27,7 @@ op_meta_dat <- tibble::tibble(var = names(op_dat),
                               unit = c("","","m","^oC","ppt","%","mg/L",
                                        "ug/L","ug/L"))
 
+
 # Define UI for application that draws a histogram
 ui <- dashboardPage(
 
@@ -37,7 +38,10 @@ ui <- dashboardPage(
    dashboardSidebar(
      fluidPage(h3(textOutput("site"))),
      uiOutput("vars"),
-     uiOutput("depths")
+     uiOutput("depths"),
+     checkboxGroupInput("lt","Choose how to plot",
+                        choices = c("Points","Lines","Smoothed"),
+                        selected = "Points")
    ),
 
    dashboardBody(
@@ -53,6 +57,26 @@ ui <- dashboardPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+  site <- eventReactive(input$map_marker_click, {
+    if(is.null(input$map_marker_click)) {
+      return("op2")
+    } else {
+      loc = input$map_marker_click
+      site_locs$site[which(site_locs$lon==loc$lng)]
+    }
+  }, ignoreNULL = FALSE)
+
+  observe({
+    proxy <- leafletProxy('map')
+    proxy %>%
+      removeMarker(layerId = "test") %>%
+      addCircleMarkers(layerId = "test", data = dplyr::filter(site_locs,site == site()), color = "red")
+  })
+
+  output$site <- renderText({
+    site()
+  })
+
   output$map <- renderLeaflet({
     m <- leaflet(site_locs,
                  options = leafletOptions(zoomControl = FALSE,
@@ -61,32 +85,35 @@ server <- function(input, output) {
       addCircleMarkers(label = ~site)
   })
 
-  site <- eventReactive(input$map_marker_click, {
-    loc = input$map_marker_click
-    site_locs$site[which(site_locs$lon==loc$lng)]
-  })
-
-  output$site <- renderText({
-    site()
-  })
-
   output$series <- renderPlot({
     data <- op_dat[op_dat$site == site(), ]
     data <- subset(data, depth %in% input$depth)
-    ggplot(data) +
-      geom_point(aes_string(x="date",y=input$var,color="depth"),
+    g <- ggplot(data)
+    if("Points" %in% input$lt) {
+      g <- g + geom_point(aes_string(x="date",y=input$var,color="depth"),
                  na.rm = TRUE)
+    }
+    if("Lines" %in% input$lt) {
+      g <- g + geom_line(aes_string(x="date",y=input$var,color="depth"),
+                 na.rm = TRUE)
+    }
+    if("Smoothed" %in% input$lt) {
+      g <- g + geom_smooth(aes_string(x="date",y=input$var,color="depth"),
+                 na.rm = TRUE)
+    }
+    g
+
   })
 
   output$vars <- renderUI({
-    selectInput("var","Choose a variable...",
+    selectInput("var","Choose a variable",
                 choices = find_notna(op_dat,op_meta_dat,site()),
                 selected = "temp")
   })
 
   output$depths <- renderUI({
     data <- op_dat[op_dat$site==site(), ]
-    checkboxGroupInput("depth","Choose Depth",unique(data$depth),selected = "0")
+    checkboxGroupInput("depth","Select depths (m)",unique(data$depth),selected = "0")
   })
 
 }
